@@ -33,16 +33,30 @@ namespace PlatformService.Controllers
             return Ok(_mapper.Map<IEnumerable<PlatformReadDto>>(platforms));
         }
 
-        [HttpGet("/{id}")]
+        [HttpGet("{id}", Name = nameof(GetPlatform))]
         public IActionResult GetPlatform(int id)
         {
             var platform = _dbContext.Platforms.FirstOrDefault(i => i.Id == id);
 
-            if(platform == null){
+            if (platform == null)
+            {
                 return NotFound();
             }
 
             return Ok(_mapper.Map<PlatformReadDto>(platform));
+        }
+
+        [HttpPost]
+        public async Task<IActionResult>
+        CreatePlatform(PlatformCreateDto platformCreateDto)
+        {
+            var platform = _mapper.Map<Platform>(platformCreateDto);
+
+            _dbContext.Platforms.Add (platform);
+            await _dbContext.SaveChangesAsync();
+
+            var platformReadDto = _mapper.Map<PlatformReadDto>(platform);
+            return CreatedAtRoute(nameof(GetPlatform), new { id = platform.Id }, platformReadDto);
         }
     }
 }
