@@ -1,62 +1,58 @@
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using PlatformService.Data;
 using PlatformService.Dtos;
 using PlatformService.Models;
 
-namespace PlatformService.Controllers
+namespace PlatformService.Controllers;
+
+[ApiController]
+[Route("api/platforms")]
+public class PlatformsController : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class PlatformsController : ControllerBase
+    private readonly ILogger<PlatformsController> _logger;
+    private readonly IPlatformRepo _platformRepo;
+    private readonly IMapper _mapper;
+
+    public PlatformsController(ILogger<PlatformsController> logger, IPlatformRepo platformRepo, IMapper mapper)
     {
-        private readonly AppDbContext _dbContext;
+        _logger = logger;
+        _platformRepo = platformRepo;
+        _mapper = mapper;
+    }
 
-        private readonly IMapper _mapper;
+    [HttpGet]
+    public ActionResult<IEnumerable<PlatformReadDto>> GetPlatforms()
+    {
+        var platforms = _platformRepo.GetAllPlatform();
 
-        public PlatformsController(AppDbContext dbContext, IMapper mapper)
+        return Ok(_mapper.Map<IEnumerable<PlatformReadDto>>(platforms));
+    }
+
+    [HttpGet("{id}", Name = "GetPlatformById")]
+    public ActionResult<IEnumerable<PlatformReadDto>> GetPlatformById(int id)
+    {
+        var platform = _platformRepo.GetPlatformById(id);
+
+        if (platform == null)
+            return NotFound();
+
+        return Ok(_mapper.Map<PlatformReadDto>(platform));
+    }
+
+    [HttpPost]
+    public ActionResult<Platform> CreatePlatform(PlatformCreateDto platformCreateDto)
+    {
+        var platform = _mapper.Map<Platform>(platformCreateDto);
+
+        _platformRepo.CreatePlatform(platform);
+
+        if (_platformRepo.SaveChanges())
         {
-            _dbContext = dbContext;
-            _mapper = mapper;
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> GetPlatforms()
-        {
-            var platforms = await _dbContext.Platforms.ToListAsync();
-
-            return Ok(_mapper.Map<IEnumerable<PlatformReadDto>>(platforms));
-        }
-
-        [HttpGet("{id}", Name = nameof(GetPlatform))]
-        public IActionResult GetPlatform(int id)
-        {
-            var platform = _dbContext.Platforms.FirstOrDefault(i => i.Id == id);
-
-            if (platform == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(_mapper.Map<PlatformReadDto>(platform));
-        }
-
-        [HttpPost]
-        public async Task<IActionResult>
-        CreatePlatform(PlatformCreateDto platformCreateDto)
-        {
-            var platform = _mapper.Map<Platform>(platformCreateDto);
-
-            _dbContext.Platforms.Add (platform);
-            await _dbContext.SaveChangesAsync();
-
             var platformReadDto = _mapper.Map<PlatformReadDto>(platform);
-            return CreatedAtRoute(nameof(GetPlatform), new { id = platform.Id }, platformReadDto);
+            return CreatedAtRoute(nameof(GetPlatformById), new { Id = platform.Id }, platformReadDto);
         }
+
+        return NotFound();
     }
 }
