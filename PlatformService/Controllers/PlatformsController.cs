@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using PlatformService.Data;
 using PlatformService.Dtos;
 using PlatformService.Models;
+using PlatformService.SyncDataServices.Http;
 
 namespace PlatformService.Controllers;
 
@@ -13,12 +14,17 @@ public class PlatformsController : ControllerBase
     private readonly ILogger<PlatformsController> _logger;
     private readonly IPlatformRepo _platformRepo;
     private readonly IMapper _mapper;
+    private readonly ICommandDataClient _commandDataClient;
 
-    public PlatformsController(ILogger<PlatformsController> logger, IPlatformRepo platformRepo, IMapper mapper)
+    public PlatformsController(ILogger<PlatformsController> logger, 
+        IPlatformRepo platformRepo, 
+        IMapper mapper,
+        ICommandDataClient commandDataClient)
     {
         _logger = logger;
         _platformRepo = platformRepo;
         _mapper = mapper;
+        _commandDataClient = commandDataClient;
     }
 
     [HttpGet]
@@ -26,7 +32,7 @@ public class PlatformsController : ControllerBase
     {
         var platforms = _platformRepo.GetAllPlatform();
 
-        return Ok(_mapper.Map<IEnumerable<PlatformReadDto>>(platforms));
+        return Ok(_mapper.Map<IEnumerable<PlatformReadDto>>(platforms)); 
     }
 
     [HttpGet("{id}", Name = "GetPlatformById")]
@@ -41,7 +47,7 @@ public class PlatformsController : ControllerBase
     }
 
     [HttpPost]
-    public ActionResult<Platform> CreatePlatform(PlatformCreateDto platformCreateDto)
+    public async Task<ActionResult<Platform>> CreatePlatform(PlatformCreateDto platformCreateDto)
     {
         var platform = _mapper.Map<Platform>(platformCreateDto);
 
@@ -50,8 +56,16 @@ public class PlatformsController : ControllerBase
         if (_platformRepo.SaveChanges())
         {
             var platformReadDto = _mapper.Map<PlatformReadDto>(platform);
+            try
+            {
+                await _commandDataClient.SendPlatformCommand(platformReadDto);
+            }
+            catch (Exception)
+            {
+                Console.WriteLine($"--> fail to sent message to command service");
+            }
             return CreatedAtRoute(nameof(GetPlatformById), new { Id = platform.Id }, platformReadDto);
-        }
+        } 
 
         return NotFound();
     }

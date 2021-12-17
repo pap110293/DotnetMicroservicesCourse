@@ -1,4 +1,4 @@
-﻿FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build-env
+FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build-env
 WORKDIR /app
 
 COPY *.csproj ./
@@ -12,4 +12,4 @@ WORKDIR /app
 EXPOSE 80
 COPY --from=build-env /app/out .
 ENV ASPNETCORE_URLS http://*:80
-ENTRYPOINT ["dotnet", "PlatformService.dll"]
+ENTRYPOINT ["dotnet", "CommandService.dll"]
